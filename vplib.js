@@ -409,12 +409,49 @@ angular.module("vpApp").service("vpGCal", function(vpConfiguration, $rootScope, 
 			};
 		}
 
+		// Custom event labels (Google Calendar, June 2026): map eventLabelId -> hex colour.
+		// Loaded once per calendar, before events, so every event can resolve its label colour.
+		this.labelColours = null;
+
+		function loadLabels_then(do_this) {
+			if (cal.labelColours)
+				return do_this();
+
+			function req(params, onDone) {
+				gapi.client.request({
+					path: "https://www.googleapis.com/calendar/v3/calendars/" + encodeURIComponent(id),
+					method: "GET",
+					params: params
+				})
+				.then(function(response) {
+					var lp = response.result && response.result.labelProperties;
+					onDone(lp && lp.eventLabels ? lp.eventLabels : null);
+				}, function() { onDone(null); });
+			}
+
+			function store(labels) {
+				cal.labelColours = {};
+				for (var l of (labels || []))
+					if (l.id && l.backgroundColor)
+						cal.labelColours[l.id] = l.backgroundColor;
+				do_this();
+			}
+
+			// try plain request first, then with eventLabelVersion=1 if no labels came back
+			req({}, function(labels) {
+				if (labels) store(labels);
+				else req({eventLabelVersion: 1}, store);
+			});
+		}
+
 		this.loadEvents = function() {
-			reqEvents({timeMin: isoSpan.start, timeMax: isoSpan.end, singleEvents: true});
+			loadLabels_then(function() {
+				reqEvents({timeMin: isoSpan.start, timeMax: isoSpan.end, singleEvents: true, eventLabelVersion: 1});
+			});
 		}
 
 		this.syncEvents = function() {
-			reqEvents({syncToken: synctok, singleEvents: true});
+			reqEvents({syncToken: synctok, singleEvents: true, eventLabelVersion: 1});
 		}
 
 		this.toggle = function() {
@@ -442,6 +479,14 @@ angular.module("vpApp").service("vpGCal", function(vpConfiguration, $rootScope, 
 		}
 	}
 
+	// black or white text, whichever reads better on the given hex background
+	function textColourFor(hex) {
+		var h = hex.replace("#", "");
+		if (h.length == 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+		var r = parseInt(h.substr(0,2),16), g = parseInt(h.substr(2,2),16), b = parseInt(h.substr(4,2),16);
+		return ((0.299*r + 0.587*g + 0.114*b) > 150) ? "#1d1d1d" : "#ffffff";
+	}
+
 	function VpEvent(cal, item) {
 		this.id = item.id;
 		this.cal = cal;
@@ -456,7 +501,11 @@ angular.module("vpApp").service("vpGCal", function(vpConfiguration, $rootScope, 
 			this.colour = {background: "#ffffff"};
 		if (cfg.event_background == "evt") {
 			this.colour = cal.colour;
-			if (item.colorId)
+			if (item.eventLabelId && cal.labelColours && cal.labelColours[item.eventLabelId]) {
+				var bg = cal.labelColours[item.eventLabelId];
+				this.colour = {text: textColourFor(bg), background: bg};
+			}
+			else if (item.colorId)
 			if (eventcolours && eventcolours[item.colorId])
 			if (eventcolours[item.colorId])
 				this.colour = {text: eventcolours[item.colorId].foreground, background: eventcolours[item.colorId].background};
