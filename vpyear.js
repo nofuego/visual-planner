@@ -273,7 +273,6 @@ angular.module("vpApp").directive("vpYear", function(vpGCal, $rootScope, $window
 				var y = vy.year;
 				var fdw = parseInt(cfg.first_day_of_week) || 0;
 				var weekends = String(cfg.weekends || "6,0").split(",").map(function(s) { return parseInt(s); });
-				var names = String(cfg.month_names || "").split("-");
 				var letters = ["S", "M", "T", "W", "T", "F", "S"];
 				var todayNum = dnum(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
 
@@ -298,7 +297,7 @@ angular.module("vpApp").directive("vpYear", function(vpGCal, $rootScope, $window
 					var offset = (new Date(Date.UTC(y, m, 1)).getUTCDay() - fdw + 7) % 7;
 					var month = {
 						index: m,
-						name: (names[m] || new Date(y, m, 1).toLocaleString(undefined, {month: "short"})),
+						name: new Date(y, m, 1).toLocaleString(undefined, {month: "long"}),
 						current: (y == new Date().getFullYear() && m == new Date().getMonth()),
 						weeks: []
 					};

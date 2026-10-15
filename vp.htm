@@ -109,15 +109,11 @@ vp-year {
 <title ng-bind="vp.appdata.title">Loading...</title>
 
 <div id="banner">
-	<div class="panel" ng-show="vpapp.show.planner">
-		<div class="toolbtn material-icons" title="Column" ng-click="vpgrid.onclickColumn()" ng-class="vp.gridview.column">view_column</div>
-		<div class="toolbtn material-icons" title="List" ng-click="vpgrid.onclickList()" ng-class="vp.gridview.list">view_list</div>
-		<div class="toolbtn material-icons" title="Expand" ng-click="vpgrid.onclickExpand()" ng-class="vp.gridview.expand">calendar_view_day</div>
-		<div class="toolbtn material-icons" title="Dark Mode" ng-click="vpgrid.onclickDarkMode()" ng-class="vp.gridview.darkmode">dark_mode</div>
-		<div class="toolbtn material-icons" title="Year view" ng-click="vpapp.onclickYear()">calendar_view_month</div>
-	</div>
-	<div class="panel" ng-show="vpapp.show.year">
-		<div class="toolbtn material-icons" title="Planner view" ng-click="vpapp.onclickPlanner()">view_column</div>
+	<div class="panel" ng-show="vpapp.show.planner || vpapp.show.year">
+		<div class="toolbtn material-icons" title="Column" ng-click="vpapp.onclickLayout('column')" ng-class="{checked: vpapp.show.planner && vp.gridview.column.checked}">view_column</div>
+		<div class="toolbtn material-icons" title="List" ng-click="vpapp.onclickLayout('list')" ng-class="{checked: vpapp.show.planner && vp.gridview.list.checked}">view_list</div>
+		<div class="toolbtn material-icons" title="Year" ng-click="vpapp.onclickYear()" ng-class="{checked: vpapp.show.year}">calendar_view_month</div>
+		<div class="toolbtn material-icons" title="Expand" ng-show="vpapp.show.planner" ng-click="vpgrid.onclickExpand()" ng-class="vp.gridview.expand">calendar_view_day</div>
 		<div class="toolbtn material-icons" title="Dark Mode" ng-click="vpgrid.onclickDarkMode()" ng-class="vp.gridview.darkmode">dark_mode</div>
 	</div>
 	<div class="panel middle">
@@ -286,6 +282,16 @@ angular.module("vpApp").controller("vpController", function($scope, vpConfigurat
 			plannerNeedsReset = false;
 			$timeout(function() { $scope.vpgrid.reset(); });
 		}
+	}
+
+	// Column and List always switch back to the planner, in that layout
+	this.onclickLayout = function(kind) {
+		if (!this.show.planner)
+			this.onclickPlanner();
+		if (kind == "column")
+			$scope.vpgrid.onclickColumn();
+		else
+			$scope.vpgrid.onclickList();
 	}
 
 	this.onclickYearSync = function() {
