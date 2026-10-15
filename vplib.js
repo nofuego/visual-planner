@@ -21,7 +21,7 @@ angular.module("vpApp").service("vpConfiguration", function($window, $location, 
 
 	function loadPermissions_then(do_this) {
 		google.accounts.oauth2.initTokenClient({
-			client_id: $location.$$hash ? $location.$$hash : "186424320143-vb1h85auvvpnojvmeg9gi6lv9aan4ggi.apps.googleusercontent.com",
+			client_id: $location.$$hash ? $location.$$hash : "130303070791-t2b1c2rmkpru0ukk7qqida2d8k0u88m2.apps.googleusercontent.com",
 			scope: "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.appdata",
 			prompt: "",
 			callback: rcv
