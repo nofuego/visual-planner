@@ -22,7 +22,8 @@ angular.module("vpApp").directive("vpYear", function(vpGCal, $rootScope, $window
 		<button class="ynav material-icons" title="Next year" ng-click="vy.go(1)">chevron_right</button>
 		<button class="ytoday" ng-click="vy.thisYear()" ng-hide="vy.year == vy.currentYear">This year</button>
 		<div class="yspacer"></div>
-		<span class="yloading" ng-show="vy.loading">Loading events</span>
+		<span class="yloading" ng-show="vy.loading && !vy.error">Loading events</span>
+		<span class="yerror" ng-show="vy.error">{{vy.error}}</span>
 		<label class="ylanes">Events per day
 			<select ng-model="vy.lanes" ng-change="vy.setLanes()" ng-options="n for n in [1,2,3,4,5,6]"></select>
 		</label>
@@ -91,12 +92,13 @@ angular.module("vpApp").directive("vpYear", function(vpGCal, $rootScope, $window
 	border-radius: 4px;
 	cursor: pointer;
 }
-#vpyear .ynav { border: none; border-radius: 50%; font-size: 1.5em; padding: 0.1em; margin: 0; }
+#vpyear button.ynav { font-family: "Material Icons"; border: none; border-radius: 50%; font-size: 1.5em; padding: 0.1em; margin: 0; }
 #vpyear button:hover { background: var(--y-weekend); }
 #vpyear button:focus-visible, #vpyear select:focus-visible { outline: 2px solid var(--y-accent); outline-offset: 1px; }
 #vpyear .ytoday { padding: 0.35em 0.8em; font-size: 0.85em; }
 #vpyear .yspacer { flex: 1; }
 #vpyear .yloading, #vpyear .ylanes { font-size: 0.8em; color: var(--y-muted); }
+#vpyear .yerror { font-size: 0.8em; color: #d93025; }
 #vpyear .ylanes select { margin-left: 0.4em; }
 #vpyear .ymonths {
 	display: grid;
@@ -223,15 +225,46 @@ angular.module("vpApp").directive("vpYear", function(vpGCal, $rootScope, $window
 				if (!force && cache[y]) { render(); return; }
 				if (!$rootScope.vp.calendarlist || !$rootScope.vp.calendarlist.length) { render(); return; }
 
+				vy.error = "";
+				if (typeof vpGCal.fetchRange != "function") {
+					vy.error = "Can't load events: the vplib.js on your site is an older version. Upload the latest vplib.js, then hard reload.";
+					console.error("vpyear: vpGCal.fetchRange missing (old vplib.js)");
+					render();
+					return;
+				}
+
 				vy.loading = true;
 				render();
-				vpGCal.fetchRange(iso(y), iso(y + 1)).then(function(events) {
+
+				var done = false;
+				var slow = setTimeout(function() {
+					if (done || vy.year != y) return;
+					$scope.$apply(function() { vy.error = "Events are taking unusually long to load. Check the browser console for errors."; });
+				}, 20000);
+
+				var request;
+				try { request = vpGCal.fetchRange(iso(y), iso(y + 1)); }
+				catch (e) { request = Promise.reject(e); }
+
+				request.then(function(events) {
+					done = true;
+					clearTimeout(slow);
 					cache[y] = events;
+					console.log("vpyear: loaded " + events.length + " events for " + y);
 					$scope.$apply(function() {
 						if (vy.year == y) {
 							vy.loading = false;
+							vy.error = "";
 							render();
 						}
+					});
+				}, function(err) {
+					done = true;
+					clearTimeout(slow);
+					console.error("vpyear:", err);
+					$scope.$apply(function() {
+						vy.loading = false;
+						vy.error = "Couldn't load events: " + ((err && (err.message || (err.result && err.result.error && err.result.error.message))) || "unknown error") + ". Try the reload button.";
 					});
 				});
 			}
