@@ -51,6 +51,9 @@ body {
 	border: none;
 	outline: none;
 }
+vp-year {
+	display: block;
+}
 #settings {
 	overflow: auto;
 	padding: 0 5% 3em 5%;
@@ -111,6 +114,11 @@ body {
 		<div class="toolbtn material-icons" title="List" ng-click="vpgrid.onclickList()" ng-class="vp.gridview.list">view_list</div>
 		<div class="toolbtn material-icons" title="Expand" ng-click="vpgrid.onclickExpand()" ng-class="vp.gridview.expand">calendar_view_day</div>
 		<div class="toolbtn material-icons" title="Dark Mode" ng-click="vpgrid.onclickDarkMode()" ng-class="vp.gridview.darkmode">dark_mode</div>
+		<div class="toolbtn material-icons" title="Year view" ng-click="vpapp.onclickYear()">calendar_view_month</div>
+	</div>
+	<div class="panel" ng-show="vpapp.show.year">
+		<div class="toolbtn material-icons" title="Planner view" ng-click="vpapp.onclickPlanner()">view_column</div>
+		<div class="toolbtn material-icons" title="Dark Mode" ng-click="vpgrid.onclickDarkMode()" ng-class="vp.gridview.darkmode">dark_mode</div>
 	</div>
 	<div class="panel middle">
 		<div id="bantxt">{{vp.appdata.title}}</div>
@@ -121,6 +129,10 @@ body {
 		<div class="toolbtn material-icons" title="Print" ng-click="vpgrid.onclickPrint()">print</div>
 		<div class="toolbtn material-icons" title="Settings" ng-click="vpapp.onclickSettings()">settings</div>
 	</div>
+	<div class="panel right" ng-show="vpapp.show.year">
+		<div class="toolbtn material-icons" title="Reload events" ng-click="vpapp.onclickYearSync()">refresh</div>
+		<div class="toolbtn material-icons" title="Settings" ng-click="vpapp.onclickSettings()">settings</div>
+	</div>
 	<div class="panel right" ng-show="vpapp.show.settings">
 		<div class="toolbtn material-icons" title="Close" ng-show="vpapp.form.$pristine" ng-click="vpapp.onclickCancel()">close</div>
 		<div class="toolbtn material-icons" title="Save" ng-hide="vpapp.form.$pristine || !vp.permissions.drive_appdata" ng-click="vpapp.onclickSave()">backup</div>
@@ -129,6 +141,7 @@ body {
 </div>
 
 <vp-grid id="planner" class="contentbox" ng-show="vpapp.show.planner" tabIndex="1"></vp-grid>
+<vp-year id="yearview" class="contentbox" ng-show="vpapp.show.year"></vp-year>
 
 <div id="settings" class="contentbox" ng-show="vpapp.show.settings">
 	<h4>Account</h4>
@@ -238,13 +251,47 @@ body {
 </div>
 
 <script src="vplib.js" type='text/javascript'></script>
+<script src="vpyear.js" type='text/javascript'></script>
 
 <script type='text/javascript'>
-angular.module("vpApp").controller("vpController", function($scope, vpConfiguration) {
+angular.module("vpApp").controller("vpController", function($scope, vpConfiguration, $timeout) {
 	this.month_count_options = {"3": 3, "4": 4, "6": 6, "8": 8, "10": 10, "12": 12};
 	this.scroll_buffer_options = {"No scrolling": 0, "3": 3, "6": 6, "12": 12};
 	this.event_background_options = {"Calendar": "cal", "Event": "evt", "White": "white", "Transparent": ""};
-	this.show = {planner: true};
+	// remember whether the planner or the year view was open last
+	var lastView = "planner";
+	try { if (localStorage.getItem("vp-view") == "year") lastView = "year"; } catch (e) {}
+	this.show = {};
+	this.show[lastView] = true;
+
+	function showView(view) {
+		lastView = view;
+		try { localStorage.setItem("vp-view", view); } catch (e) {}
+		var show = {};
+		show[view] = true;
+		return show;
+	}
+
+	this.onclickYear = function() {
+		this.show = showView("year");
+	}
+
+	// the planner lays itself out on load; if it started hidden behind the year view,
+	// rebuild it the first time it is shown so its sizing is correct
+	var plannerNeedsReset = (lastView == "year");
+
+	this.onclickPlanner = function() {
+		this.show = showView("planner");
+		if (plannerNeedsReset) {
+			plannerNeedsReset = false;
+			$timeout(function() { $scope.vpgrid.reset(); });
+		}
+	}
+
+	this.onclickYearSync = function() {
+		$scope.$broadcast("vpyear:reload");
+	}
+
 	$scope.vp.gridoptions = {shownavbar: true, showcalbar: true, redboxtoday: true, enablelinks: true};
 
 	gapi.load('client', vpConfiguration.Load);
@@ -256,13 +303,14 @@ angular.module("vpApp").controller("vpController", function($scope, vpConfigurat
 
 	this.onclickCancel = function() {
 		vpConfiguration.revertAppdata();
-		this.show = {planner: true};
+		this.show = showView(lastView);
 	}
 
 	this.onclickSave = function() {
 		vpConfiguration.saveAppData();
-		this.show = {planner: true};
+		this.show = showView(lastView);
 		$scope.vpgrid.reset();
+		$scope.$broadcast("vpyear:reload");
 	}
 });
 </script>

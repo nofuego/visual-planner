@@ -21,7 +21,7 @@ angular.module("vpApp").service("vpConfiguration", function($window, $location, 
 
 	function loadPermissions_then(do_this) {
 		google.accounts.oauth2.initTokenClient({
-			client_id: $location.$$hash ? $location.$$hash : "130303070791-t2b1c2rmkpru0ukk7qqida2d8k0u88m2.apps.googleusercontent.com",
+			client_id: $location.$$hash ? $location.$$hash : "186424320143-vb1h85auvvpnojvmeg9gi6lv9aan4ggi.apps.googleusercontent.com",
 			scope: "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.appdata",
 			prompt: "",
 			callback: rcv
@@ -329,6 +329,12 @@ angular.module("vpApp").service("vpGCal", function(vpConfiguration, $rootScope, 
 	}
 	this.loadAllCalEvents = loadAllCalEvents;
 
+	// Year view: all events from all calendars in [isoMin, isoMax)
+	this.fetchRange = function(isoMin, isoMax) {
+		return Promise.all(calendarlist.map(function(c) { return c.fetchRange(isoMin, isoMax); }))
+			.then(function(lists) { return [].concat.apply([], lists); });
+	}
+
 	this.syncAllCalEvents = function() {
 		for (cal of calendarlist)
 			cal.syncEvents();
@@ -452,6 +458,43 @@ angular.module("vpApp").service("vpGCal", function(vpConfiguration, $rootScope, 
 
 		this.syncEvents = function() {
 			reqEvents({syncToken: synctok, singleEvents: true, eventLabelVersion: 1});
+		}
+
+		// Year view: fetch every event in a date range for this calendar, independent of the planner grid.
+		this.fetchRange = function(isoMin, isoMax) {
+			return new Promise(function(resolve) {
+				var out = [];
+				loadLabels_then(function() {
+					function page(token) {
+						var params = {timeMin: isoMin, timeMax: isoMax, singleEvents: true, eventLabelVersion: 1, maxResults: 2500};
+						if (token)
+							params.pageToken = token;
+
+						gapi.client.request({
+							path: "https://www.googleapis.com/calendar/v3/calendars/" + encodeURIComponent(id) + "/events",
+							method: "GET",
+							params: params
+						})
+						.then(function(response) {
+							for (var item of (response.result.items || [])) {
+								if (item.kind != "calendar#event" || item.status == "cancelled" || !item.start)
+									continue;
+								var evt = new VpEvent(cal, item);
+								if (evt.timed ? cfg.show_timed_events : cfg.show_all_day_events)
+									out.push(evt);
+							}
+							if (response.result.nextPageToken)
+								page(response.result.nextPageToken);
+							else
+								resolve(out);
+						}, function(reason) {
+							console.error(reason);
+							resolve(out);
+						});
+					}
+					page(null);
+				});
+			});
 		}
 
 		this.toggle = function() {
