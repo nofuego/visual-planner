@@ -51,7 +51,7 @@ body {
 	border: none;
 	outline: none;
 }
-vp-year {
+vp-year, vp-months {
 	display: block;
 }
 #settings {
@@ -109,9 +109,10 @@ vp-year {
 <title ng-bind="vp.appdata.title">Loading...</title>
 
 <div id="banner">
-	<div class="panel" ng-show="vpapp.show.planner || vpapp.show.year">
+	<div class="panel" ng-show="vpapp.show.planner || vpapp.show.year || vpapp.show.months">
 		<div class="toolbtn material-icons" title="Column" ng-click="vpapp.onclickLayout('column')" ng-class="{checked: vpapp.show.planner && vp.gridview.column.checked}">view_column</div>
 		<div class="toolbtn material-icons" title="List" ng-click="vpapp.onclickLayout('list')" ng-class="{checked: vpapp.show.planner && vp.gridview.list.checked}">view_list</div>
+		<div class="toolbtn material-icons" title="3 Months" ng-click="vpapp.onclickMonths()" ng-class="{checked: vpapp.show.months}">date_range</div>
 		<div class="toolbtn material-icons" title="Year" ng-click="vpapp.onclickYear()" ng-class="{checked: vpapp.show.year}">calendar_view_month</div>
 		<div class="toolbtn material-icons" title="Expand" ng-show="vpapp.show.planner" ng-click="vpgrid.onclickExpand()" ng-class="vp.gridview.expand">calendar_view_day</div>
 		<div class="toolbtn material-icons" title="Dark Mode" ng-click="vpgrid.onclickDarkMode()" ng-class="vp.gridview.darkmode">dark_mode</div>
@@ -125,7 +126,7 @@ vp-year {
 		<div class="toolbtn material-icons" title="Print" ng-click="vpgrid.onclickPrint()">print</div>
 		<div class="toolbtn material-icons" title="Settings" ng-click="vpapp.onclickSettings()">settings</div>
 	</div>
-	<div class="panel right" ng-show="vpapp.show.year">
+	<div class="panel right" ng-show="vpapp.show.year || vpapp.show.months">
 		<div class="toolbtn material-icons" title="Reload events" ng-click="vpapp.onclickYearSync()">refresh</div>
 		<div class="toolbtn material-icons" title="Settings" ng-click="vpapp.onclickSettings()">settings</div>
 	</div>
@@ -138,6 +139,7 @@ vp-year {
 
 <vp-grid id="planner" class="contentbox" ng-show="vpapp.show.planner" tabIndex="1"></vp-grid>
 <vp-year id="yearview" class="contentbox" ng-show="vpapp.show.year"></vp-year>
+<vp-months id="monthsview" class="contentbox" ng-show="vpapp.show.months"></vp-months>
 
 <div id="settings" class="contentbox" ng-show="vpapp.show.settings">
 	<h4>Account</h4>
@@ -248,6 +250,7 @@ vp-year {
 
 <script src="vplib.js" type='text/javascript'></script>
 <script src="vpyear.js" type='text/javascript'></script>
+<script src="vpmonths.js" type='text/javascript'></script>
 
 <script type='text/javascript'>
 angular.module("vpApp").controller("vpController", function($scope, vpConfiguration, $timeout) {
@@ -256,7 +259,10 @@ angular.module("vpApp").controller("vpController", function($scope, vpConfigurat
 	this.event_background_options = {"Calendar": "cal", "Event": "evt", "White": "white", "Transparent": ""};
 	// remember whether the planner or the year view was open last
 	var lastView = "planner";
-	try { if (localStorage.getItem("vp-view") == "year") lastView = "year"; } catch (e) {}
+	try {
+		var saved = localStorage.getItem("vp-view");
+		if (saved == "year" || saved == "months") lastView = saved;
+	} catch (e) {}
 	this.show = {};
 	this.show[lastView] = true;
 
@@ -274,7 +280,11 @@ angular.module("vpApp").controller("vpController", function($scope, vpConfigurat
 
 	// the planner lays itself out on load; if it started hidden behind the year view,
 	// rebuild it the first time it is shown so its sizing is correct
-	var plannerNeedsReset = (lastView == "year");
+	var plannerNeedsReset = (lastView != "planner");
+
+	this.onclickMonths = function() {
+		this.show = showView("months");
+	}
 
 	this.onclickPlanner = function() {
 		this.show = showView("planner");

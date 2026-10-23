@@ -566,6 +566,8 @@ angular.module("vpApp").service("vpGCal", function(vpConfiguration, $rootScope, 
 			this.duration = VpDate.DaySpan(vdttStart.ymd(), vdttEnd.ymd()) + 1;
 			this.desc = vdttStart.TimeTitle() + " ";
 			this.timestamp = vdttStart.DayMinutes();
+			this.startDate = vdttStart.dt;
+			this.endDate = vdttEnd.dt;
 		}
 		else
 		{
@@ -575,6 +577,8 @@ angular.module("vpApp").service("vpGCal", function(vpConfiguration, $rootScope, 
 			this.desc = "";
 			this.timestamp = -1;
 		}
+
+		this.summary = item.summary || "(No title)";
 
 		if (item.summary)
 			this.desc += item.summary;
